@@ -42,6 +42,12 @@ const PERMISOS = [
     { codigo: "recursos.consultar", nombre: "Consultar recursos", descripcion: "Listar y ver recursos", modulo: "RECURSOS" },
     { codigo: "recursos.actualizar", nombre: "Actualizar recursos", descripcion: "Modificar recursos", modulo: "RECURSOS" },
     { codigo: "recursos.deshabilitar", nombre: "Deshabilitar recursos", descripcion: "Activar/inactivar recursos", modulo: "RECURSOS" },
+    // ESTUDIANTES (HU-01)
+    { codigo: "estudiantes.consultar", nombre: "Consultar estudiantes", descripcion: "Listar estudiantes con los campos necesarios para identificarlos", modulo: "ESTUDIANTES" },
+    // EJERCICIOS (HU-04)
+    { codigo: "ejercicios.crear", nombre: "Registrar ejercicios", descripcion: "Registrar un ejercicio de emergencia", modulo: "EJERCICIOS" },
+    // VERIFICACIONES (HU-07)
+    { codigo: "verificaciones.registrar", nombre: "Registrar verificaciones", descripcion: "Registrar la verificación de un estudiante en un ejercicio", modulo: "VERIFICACIONES" },
 ] as const;
 
 async function seedPermisos() {
@@ -72,8 +78,14 @@ async function seedRolPermisos() {
         skipDuplicates: true,
     });
 
-    // user: solo consulta de recursos (ajusta según tu caso)
-    const permisosUser = permisos.filter((p) => p.codigo === "recursos.consultar");
+    // user: responsable operativo de los ejercicios (consulta estudiantes, registra ejercicios y verificaciones)
+    const permisosOperativos = new Set([
+        "recursos.consultar",
+        "estudiantes.consultar",
+        "ejercicios.crear",
+        "verificaciones.registrar",
+    ]);
+    const permisosUser = permisos.filter((p) => permisosOperativos.has(p.codigo));
     await prisma.rolPermiso.createMany({
         data: permisosUser.map((p) => ({ rolId: user.id, permisoId: p.id })),
         skipDuplicates: true,
@@ -110,11 +122,72 @@ async function seedUsuarioAdmin() {
     console.log("  ⚠ Cambia esta contraseña antes de ir a producción.");
 }
 
+// Datos ficticios para el prototipo. No corresponden a estudiantes reales de Ágape School.
+const GRUPOS = [
+    { codigo: "1A", nombre: "Primero A" },
+    { codigo: "3B", nombre: "Tercero B" },
+    { codigo: "5A", nombre: "Quinto A" },
+] as const;
+
+const ESTUDIANTES = [
+    { codigoUnico: "AGP-1001", nombres: "Lucía", apellidos: "Herrera Díaz", grupo: "1A" },
+    { codigoUnico: "AGP-1002", nombres: "Mateo", apellidos: "Rojas Peña", grupo: "1A" },
+    { codigoUnico: "AGP-1003", nombres: "Sofía", apellidos: "Castro Luna", grupo: "1A" },
+    { codigoUnico: "AGP-1004", nombres: "Emiliano", apellidos: "Vargas Ortiz", grupo: "1A" },
+    { codigoUnico: "AGP-3001", nombres: "Valentina", apellidos: "Morales Ruiz", grupo: "3B" },
+    { codigoUnico: "AGP-3002", nombres: "Samuel", apellidos: "Delgado Cruz", grupo: "3B" },
+    { codigoUnico: "AGP-3003", nombres: "Isabella", apellidos: "Núñez Pardo", grupo: "3B" },
+    { codigoUnico: "AGP-3004", nombres: "Tomás", apellidos: "Guerrero Silva", grupo: "3B" },
+    { codigoUnico: "AGP-5001", nombres: "Camila", apellidos: "Restrepo Gil", grupo: "5A" },
+    { codigoUnico: "AGP-5002", nombres: "Juan", apellidos: "Osorio Méndez", grupo: "5A" },
+    { codigoUnico: "AGP-5003", nombres: "Mariana", apellidos: "Cifuentes León", grupo: "5A" },
+    { codigoUnico: "AGP-5004", nombres: "Andrés", apellidos: "Palacios Ríos", grupo: "5A" },
+] as const;
+
+async function seedGruposYEstudiantes() {
+    for (const grupo of GRUPOS) {
+        await prisma.grupo.upsert({
+            where: { codigo: grupo.codigo },
+            create: { codigo: grupo.codigo, nombre: grupo.nombre, activo: true },
+            update: { nombre: grupo.nombre, activo: true },
+        });
+    }
+
+    const grupos = await prisma.grupo.findMany({ select: { id: true, codigo: true } });
+    const grupoPorCodigo = new Map(grupos.map((grupo) => [grupo.codigo, grupo.id]));
+
+    for (const estudiante of ESTUDIANTES) {
+        const grupoId = grupoPorCodigo.get(estudiante.grupo);
+        if (!grupoId) {
+            throw new Error(`No existe el grupo ${estudiante.grupo} para sembrar estudiantes`);
+        }
+        await prisma.estudiante.upsert({
+            where: { codigoUnico: estudiante.codigoUnico },
+            create: {
+                codigoUnico: estudiante.codigoUnico,
+                nombres: estudiante.nombres,
+                apellidos: estudiante.apellidos,
+                grupoId,
+                activo: true,
+            },
+            update: {
+                nombres: estudiante.nombres,
+                apellidos: estudiante.apellidos,
+                grupoId,
+                activo: true,
+            },
+        });
+    }
+
+    console.log(`✔ Grupos ficticios: ${GRUPOS.length}. Estudiantes ficticios: ${ESTUDIANTES.length}.`);
+}
+
 async function main() {
     await seedRoles();
     await seedPermisos();
     await seedRolPermisos();
     await seedUsuarioAdmin();
+    await seedGruposYEstudiantes();
 }
 
 main()

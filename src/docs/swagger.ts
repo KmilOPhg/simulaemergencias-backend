@@ -29,7 +29,7 @@ export const swaggerDocument = {
     title: "simulaemergencias API",
     version: "1.0.0",
     description:
-      "API generada con create-node-app. Incluye autenticación JWT, roles y permisos, manejo centralizado de errores y un módulo de ejemplo (`recursos`).",
+      "API de SimulaEmergencias para Ágape School. Incluye autenticación JWT, roles y permisos, el listado de estudiantes (HU-01), el registro de ejercicios de emergencia (HU-04) y la verificación de estudiantes durante un ejercicio (HU-07). Los datos de estudiantes sembrados son ficticios.",
   },
   servers: [{ url: "/api" }],
   tags: [
@@ -38,6 +38,9 @@ export const swaggerDocument = {
     { name: "Recuperacion", description: "Recuperación de contraseña por correo" },
     { name: "Sistema", description: "Monitoreo / healthcheck" },
     { name: "Recursos", description: "Módulo de ejemplo (CRUD)" },
+    { name: "Estudiantes", description: "HU-01. Listado de estudiantes de la institución" },
+    { name: "Ejercicios", description: "HU-04. Registro de ejercicios de emergencia" },
+    { name: "Verificaciones", description: "HU-07. Verificación de estudiantes durante un ejercicio" },
   ],
   components: {
     securitySchemes: {
@@ -73,6 +76,87 @@ export const swaggerDocument = {
           activo: { type: "boolean" },
           creadoEn: { type: "string", format: "date-time" },
           actualizadoEn: { type: "string", format: "date-time" },
+        },
+      },
+      GrupoResumen: {
+        type: "object",
+        properties: {
+          id: { type: "integer" },
+          codigo: { type: "string", example: "5A" },
+          nombre: { type: "string", example: "Quinto A" },
+        },
+      },
+      EstudianteListado: {
+        type: "object",
+        description: "Campos aprobados para identificar a un participante. No incluye datos personales adicionales.",
+        properties: {
+          id: { type: "integer" },
+          codigoUnico: { type: "string", example: "AGP-5001" },
+          nombres: { type: "string", example: "Camila" },
+          apellidos: { type: "string", example: "Restrepo Gil" },
+          grupo: { $ref: "#/components/schemas/GrupoResumen" },
+        },
+      },
+      TipoEscenario: {
+        type: "string",
+        enum: ["SISMO", "INCENDIO", "INTRUSO"],
+        description: "Escenarios aprobados para el ejercicio: sismo, incendio e intruso.",
+      },
+      EjercicioEmergencia: {
+        type: "object",
+        properties: {
+          id: { type: "integer" },
+          nombre: { type: "string", example: "Simulacro de sismo — bloque primaria" },
+          fecha: { type: "string", format: "date", example: "2026-10-26" },
+          horaInicio: { type: "string", nullable: true, example: "09:30", description: "Hora local HH:mm. No cambia el día guardado en fecha." },
+          tipoEscenario: { $ref: "#/components/schemas/TipoEscenario" },
+          lugar: { type: "string", nullable: true, example: "Sede principal" },
+          descripcion: { type: "string", nullable: true },
+          creadoEn: { type: "string", format: "date-time" },
+          registradoPor: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              nombre: { type: "string" },
+            },
+          },
+        },
+      },
+      VerificacionEstudiante: {
+        type: "object",
+        description:
+          "Un registro VERIFICADO significa que el responsable autorizado registró el chequeo de ese estudiante en el ejercicio. No indica por sí mismo presencia o ausencia física. El estado pendiente no se almacena: es la ausencia de este registro y no debe interpretarse como inasistencia.",
+        properties: {
+          id: { type: "integer" },
+          estado: { type: "string", enum: ["VERIFICADO"] },
+          observacion: { type: "string", nullable: true },
+          verificadoEn: { type: "string", format: "date-time" },
+          estudiante: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              codigoUnico: { type: "string" },
+              nombres: { type: "string" },
+              apellidos: { type: "string" },
+            },
+          },
+          grupo: { $ref: "#/components/schemas/GrupoResumen" },
+          ejercicio: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              nombre: { type: "string" },
+              fecha: { type: "string", format: "date" },
+              tipoEscenario: { $ref: "#/components/schemas/TipoEscenario" },
+            },
+          },
+          registradoPor: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              nombre: { type: "string" },
+            },
+          },
         },
       },
     },
@@ -389,6 +473,163 @@ export const swaggerDocument = {
         security: bearerAuth,
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: { "200": { description: "Recurso actualizado" }, "403": respuestaError },
+      },
+    },
+    "/estudiantes": {
+      get: {
+        tags: ["Estudiantes"],
+        summary: "HU-01. Consultar el listado de estudiantes",
+        description:
+          "Requiere `estudiantes.consultar`. Devuelve solo estudiantes activos, ordenados por apellido y nombre. Cada registro incluye el código único, los nombres y el grupo. No expone documento, contacto ni otros datos personales. El rol operativo `user` y el rol `admin` tienen este permiso.",
+        security: bearerAuth,
+        parameters: paramsPagina,
+        responses: {
+          "200": {
+            description: "Listado obtenido",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        datos: { type: "array", items: { $ref: "#/components/schemas/EstudianteListado" } },
+                        total: { type: "integer" },
+                        pagina: { type: "integer" },
+                        limite: { type: "integer" },
+                        totalPaginas: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": respuestaError,
+          "403": respuestaError,
+        },
+      },
+    },
+    "/ejercicios": {
+      post: {
+        tags: ["Ejercicios"],
+        summary: "HU-04. Registrar un ejercicio de emergencia",
+        description:
+          "Requiere `ejercicios.crear`. Guarda la actividad cuyos resultados se van a gestionar. Los escenarios permitidos son SISMO, INCENDIO e INTRUSO. El responsable se toma del token y no se envía en el cuerpo.",
+        security: bearerAuth,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["nombre", "fecha", "tipoEscenario"],
+                properties: {
+                  nombre: { type: "string", minLength: 3, maxLength: 150, example: "Simulacro de sismo — bloque primaria" },
+                  fecha: { type: "string", format: "date", example: "2026-10-26", description: "Día del ejercicio, formato AAAA-MM-DD." },
+                  tipoEscenario: { $ref: "#/components/schemas/TipoEscenario" },
+                  horaInicio: { type: "string", example: "09:30", description: "Opcional. Formato HH:mm de 24 horas." },
+                  lugar: { type: "string", maxLength: 200, example: "Sede principal" },
+                  descripcion: { type: "string", maxLength: 2000 },
+                },
+              },
+              examples: {
+                sismo: {
+                  summary: "Sismo",
+                  value: {
+                    nombre: "Simulacro de sismo — bloque primaria",
+                    fecha: "2026-10-26",
+                    horaInicio: "09:30",
+                    tipoEscenario: "SISMO",
+                    lugar: "Sede principal",
+                    descripcion: "Evacuación hacia el punto de encuentro del patio central.",
+                  },
+                },
+                incendio: {
+                  summary: "Incendio",
+                  value: { nombre: "Simulacro de incendio", fecha: "2026-11-04", tipoEscenario: "INCENDIO" },
+                },
+                intruso: {
+                  summary: "Intruso",
+                  value: { nombre: "Simulacro de intruso", fecha: "2026-11-18", tipoEscenario: "INTRUSO" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Ejercicio registrado",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: { $ref: "#/components/schemas/EjercicioEmergencia" },
+                  },
+                },
+              },
+            },
+          },
+          "400": respuestaError,
+          "401": respuestaError,
+          "403": respuestaError,
+        },
+      },
+    },
+    "/ejercicios/{ejercicioId}/verificaciones": {
+      post: {
+        tags: ["Verificaciones"],
+        summary: "HU-07. Registrar la verificación de un estudiante",
+        description:
+          "Requiere `verificaciones.registrar`. Asocia la verificación al estudiante, a su grupo y al ejercicio. El grupo enviado debe coincidir con el grupo del estudiante. No se permite una segunda verificación del mismo estudiante en el mismo ejercicio (409). El resultado queda en estado VERIFICADO. Un estudiante sin este registro está pendiente de verificación; pendiente no se guarda como fila y no significa que el estudiante esté ausente.",
+        security: bearerAuth,
+        parameters: [
+          { name: "ejercicioId", in: "path", required: true, schema: { type: "integer", minimum: 1 } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["estudianteId", "grupoId"],
+                properties: {
+                  estudianteId: { type: "integer", minimum: 1, example: 1 },
+                  grupoId: { type: "integer", minimum: 1, example: 1, description: "Debe ser el grupo al que pertenece el estudiante." },
+                  observacion: { type: "string", maxLength: 500, description: "Nota opcional del responsable. No clasifica asistencia." },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Verificación registrada",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: { $ref: "#/components/schemas/VerificacionEstudiante" },
+                  },
+                },
+              },
+            },
+          },
+          "400": respuestaError,
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+          "409": respuestaError,
+        },
       },
     },
   },

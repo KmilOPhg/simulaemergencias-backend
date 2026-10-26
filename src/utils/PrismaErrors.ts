@@ -9,6 +9,10 @@ import { Response } from "express";
 const diccionarioRelaciones: Record<string, string> = {
     rolId: "El Rol",
     usuarioId: "El Usuario",
+    estudianteId: "El estudiante",
+    grupoId: "El grupo",
+    ejercicioId: "El ejercicio",
+    registradoPorId: "El usuario",
 };
 
 const diccionarioUnicos: Record<string, string> = {
@@ -16,6 +20,7 @@ const diccionarioUnicos: Record<string, string> = {
     documento: "Documento de Identidad",
     nombre: "Nombre",
     codigo: "Código",
+    codigoUnico: "código único",
 };
 
 export const errorPrisma = (res: Response, error: PrismaClientKnownRequestError) => {
