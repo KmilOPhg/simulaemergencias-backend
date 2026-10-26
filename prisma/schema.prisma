@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===========================================================
+// MÓDULO: ROLES Y PERMISOS
+// ===========================================================
+
+model Rol {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @unique @db.VarChar(100)
+  descripcion   String?  @db.Text
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  usuarioRoles UsuarioRol[]
+  rolPermisos  RolPermiso[]
+
+  @@map("roles")
+}
+
+model Permiso {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique @db.VarChar(100) // ej: "usuarios.crear", "recursos.consultar"
+  nombre      String   @db.VarChar(200)
+  modulo      String   @db.VarChar(100) // ej: "USUARIOS", "ROLES", "RECURSOS"
+  descripcion String?  @db.Text
+  creadoEn    DateTime @default(now())
+
+  rolPermisos RolPermiso[]
+
+  @@map("permisos")
+}
+
+model RolPermiso {
+  id        Int      @id @default(autoincrement())
+  rolId     Int
+  permisoId Int
+  creadoEn  DateTime @default(now())
+
+  rol     Rol     @relation(fields: [rolId], references: [id])
+  permiso Permiso @relation(fields: [permisoId], references: [id])
+
+  @@unique([rolId, permisoId])
+  @@map("roles_permisos")
+}
+
+// ===========================================================
+// MÓDULO: USUARIOS
+// ===========================================================
+
+model Usuario {
+  id            Int           @id @default(autoincrement())
+  nombre        String        @db.VarChar(200)
+  email         String?       @unique @db.VarChar(200)
+  passwordHash  String        @db.VarChar(500)
+  estado        EstadoUsuario @default(ACTIVO)
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
+
+  // Un usuario puede tener varios roles (N:N vía usuarios_roles); sus permisos efectivos son la unión
+  usuarioRoles      UsuarioRol[]
+  tokenRecuperacion TokenRecuperacion[]
+
+  @@map("usuarios")
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  INACTIVO
+}
+
+model UsuarioRol {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  rolId     Int
+  creadoEn  DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol     Rol     @relation(fields: [rolId], references: [id])
+
+  @@unique([usuarioId, rolId])
+  @@index([rolId])
+  @@map("usuarios_roles")
+}
+
+// ===========================================================
+// RECUPERACIÓN DE CONTRASEÑA
+// ===========================================================
+
+model TokenRecuperacion {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  tokenHash String   @unique @db.VarChar(200)
+  expiresAt DateTime
+  usado     Boolean  @default(false)
+  creadoEn  DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("tokens_recuperacion")
+}
+
+// ===========================================================
+// MÓDULO DE EJEMPLO: RECURSOS
+// Usa este modelo como plantilla para crear tus propios módulos CRUD.
+// ===========================================================
+
+model Recurso {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(200)
+  descripcion   String?  @db.Text
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@map("recursos")
+}
