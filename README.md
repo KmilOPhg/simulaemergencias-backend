@@ -38,6 +38,7 @@ src/
     estudiantes.*            HU-01. Listado de estudiantes
     ejercicios.*             HU-04. Registro de ejercicios de emergencia
     verificaciones.*         HU-07. Verificación de un estudiante en un ejercicio
+    grupos.*                 HU-06. Grupos disponibles
   scripts/seed.ts          Roles, permisos, usuario admin inicial
 ```
 
@@ -87,7 +88,9 @@ Usa el `token` devuelto como `Authorization: Bearer <token>` en las demás petic
 
 El rol `user` puede consultar estudiantes, registrar ejercicios y registrar verificaciones. El rol `admin` tiene todos los permisos.
 
-## SimulaEmergencias (HU-01, HU-04 y HU-07)
+El rol `user` también puede consultar los ejercicios registrados y los grupos disponibles.
+
+## SimulaEmergencias (HU-01, HU-04 y HU-07) y consultas (HU-02, HU-03, HU-05 y HU-06)
 
 Estas historias cubren el flujo de identificar participantes, abrir un ejercicio y dejar constancia de cada verificación. Los estudiantes y grupos del seed son ficticios: no uses datos reales de menores sin autorización de Ágape School.
 
@@ -99,6 +102,9 @@ Estas historias cubren el flujo de identificar participantes, abrir un ejercicio
 - La verificación queda ligada al ejercicio, al estudiante y al grupo. El `grupoId` debe ser el grupo actual de ese estudiante.
 - Solo puede existir una verificación por estudiante en cada ejercicio. Un segundo intento responde `409`.
 - `VERIFICADO` significa que el responsable registró el chequeo. No significa, por sí mismo, que el estudiante estuviera presente o ausente. El estado pendiente no se guarda: es la ausencia de esa fila y no debe leerse como inasistencia.
+- La búsqueda por código (HU-02) devuelve los mismos campos del listado. Si el código no existe responde `404` y si llega vacío responde `400`.
+- El listado filtrado por grupo (HU-03) solo trae los estudiantes de ese grupo. Si el grupo no tiene estudiantes se informa en el mensaje y `datos` llega vacío.
+- La consulta de ejercicios (HU-05) los ordena del más reciente al más antiguo e informa cuando todavía no existen ejercicios.
 
 ### Endpoints
 
@@ -107,7 +113,11 @@ Todos requieren `Authorization: Bearer <token>`.
 | Historia | Método y ruta | Permiso |
 | --- | --- | --- |
 | HU-01 | `GET /api/estudiantes?page=1&limit=20` | `estudiantes.consultar` |
+| HU-02 | `GET /api/estudiantes/codigo/{codigo}` | `estudiantes.consultar` |
+| HU-03 | `GET /api/estudiantes?grupoId=1` | `estudiantes.consultar` |
 | HU-04 | `POST /api/ejercicios` | `ejercicios.crear` |
+| HU-05 | `GET /api/ejercicios?page=1&limit=20` | `ejercicios.consultar` |
+| HU-06 | `GET /api/grupos` | `grupos.consultar` |
 | HU-07 | `POST /api/ejercicios/{ejercicioId}/verificaciones` | `verificaciones.registrar` |
 
 Registrar un ejercicio:
@@ -133,6 +143,13 @@ POST /api/ejercicios/1/verificaciones
   "grupoId": 1,
   "observacion": "Chequeo registrado en el punto de encuentro."
 }
+```
+
+Consultar los estudiantes de un grupo o buscar uno por su código. El `grupoId` sale de `GET /api/grupos`:
+
+```
+GET /api/estudiantes?grupoId=1
+GET /api/estudiantes/codigo/AGP-1001
 ```
 
 La semilla crea los grupos `1A` (Primero A), `3B` (Tercero B) y `5A` (Quinto A), con cuatro estudiantes ficticios en cada uno. Sus códigos van de `AGP-1001` a `AGP-1004`, `AGP-3001` a `AGP-3004` y `AGP-5001` a `AGP-5004`.

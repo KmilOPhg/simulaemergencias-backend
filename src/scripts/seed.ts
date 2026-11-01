@@ -48,6 +48,10 @@ const PERMISOS = [
     { codigo: "ejercicios.crear", nombre: "Registrar ejercicios", descripcion: "Registrar un ejercicio de emergencia", modulo: "EJERCICIOS" },
     // VERIFICACIONES (HU-07)
     { codigo: "verificaciones.registrar", nombre: "Registrar verificaciones", descripcion: "Registrar la verificación de un estudiante en un ejercicio", modulo: "VERIFICACIONES" },
+    // EJERCICIOS (HU-05)
+    { codigo: "ejercicios.consultar", nombre: "Consultar ejercicios", descripcion: "Listar los ejercicios de emergencia registrados", modulo: "EJERCICIOS" },
+    // GRUPOS (HU-06)
+    { codigo: "grupos.consultar", nombre: "Consultar grupos", descripcion: "Listar los grupos disponibles", modulo: "GRUPOS" },
 ] as const;
 
 async function seedPermisos() {
@@ -84,6 +88,8 @@ async function seedRolPermisos() {
         "estudiantes.consultar",
         "ejercicios.crear",
         "verificaciones.registrar",
+        "ejercicios.consultar",
+        "grupos.consultar",
     ]);
     const permisosUser = permisos.filter((p) => permisosOperativos.has(p.codigo));
     await prisma.rolPermiso.createMany({
