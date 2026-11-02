@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { body } from "express-validator";
+import { body, query } from "express-validator";
 import asyncWrapper from "../utils/AsyncWrapper";
 import { authenticateToken, checkPermissions, validateRequest } from "../middlewares/auth.middleware";
 import { TIPOS_ESCENARIO, parsearFechaEjercicio } from "../constants/emergencias.constants";
-import { crearEjercicioController } from "../controllers/ejercicios.controller";
+import { crearEjercicioController, listarEjerciciosController } from "../controllers/ejercicios.controller";
 
 const router = Router();
 
@@ -41,5 +41,11 @@ router.post("/", [
         .trim()
         .isLength({ max: 2000 }).withMessage("La descripción no puede superar 2000 caracteres"),
 ], validateRequest, authenticateToken, checkPermissions(["ejercicios.crear"]), asyncWrapper(crearEjercicioController));
+
+// GET /api/ejercicios — HU-05
+router.get("/", [
+    query("page").optional().isInt({ min: 1 }).withMessage("La página debe ser un entero mayor o igual a 1"),
+    query("limit").optional().isInt({ min: 1, max: 100 }).withMessage("El límite debe estar entre 1 y 100"),
+], validateRequest, authenticateToken, checkPermissions(["ejercicios.consultar"]), asyncWrapper(listarEjerciciosController));
 
 export default router;

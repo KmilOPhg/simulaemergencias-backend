@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { TipoEscenario } from "../generated/prisma/client";
 import { AppError } from "../utils/AppError";
+import { leerPagina, listaPaginada, QueryPagina } from "../utils/paginacion";
 import {
     esTipoEscenario,
     formatearFechaEjercicio,
@@ -94,4 +95,24 @@ export const crearEjercicio = async (registradoPorId: number, data: EjercicioCre
     });
 
     return presentarEjercicio(ejercicio);
+};
+
+/**
+ * HU-05. Consulta de los ejercicios registrados (paginado).
+ * Se ordenan del más reciente al más antiguo.
+ */
+export const listarEjercicios = async (q?: QueryPagina) => {
+    const { pagina, limite, salto } = leerPagina(q);
+
+    const [ejercicios, total] = await Promise.all([
+        prisma.ejercicioEmergencia.findMany({
+            skip: salto,
+            take: limite,
+            orderBy: [{ fecha: "desc" }, { id: "desc" }],
+            select: ejercicioSelect,
+        }),
+        prisma.ejercicioEmergencia.count(),
+    ]);
+
+    return listaPaginada(ejercicios.map(presentarEjercicio), total, pagina, limite);
 };

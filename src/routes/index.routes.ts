@@ -7,6 +7,7 @@ import recursosRoutes from "./recursos.routes";
 import estudiantesRoutes from "./estudiantes.routes";
 import ejerciciosRoutes from "./ejercicios.routes";
 import verificacionesRoutes from "./verificaciones.routes";
+import gruposRoutes from "./grupos.routes";
 
 const router = Router();
 
@@ -33,5 +34,8 @@ router.use("/ejercicios", ejerciciosRoutes);
 
 // HU-07. Verificación de un estudiante dentro de un ejercicio
 router.use("/ejercicios/:ejercicioId/verificaciones", verificacionesRoutes);
+
+// HU-06. Grupos disponibles
+router.use("/grupos", gruposRoutes);
 
 export default router;

@@ -29,7 +29,7 @@ export const swaggerDocument = {
     title: "simulaemergencias API",
     version: "1.0.0",
     description:
-      "API de SimulaEmergencias para Ágape School. Incluye autenticación JWT, roles y permisos, el listado de estudiantes (HU-01), el registro de ejercicios de emergencia (HU-04) y la verificación de estudiantes durante un ejercicio (HU-07). Los datos de estudiantes sembrados son ficticios.",
+      "API de SimulaEmergencias para Ágape School. Incluye autenticación JWT, roles y permisos, el listado de estudiantes (HU-01), el registro de ejercicios de emergencia (HU-04) y la verificación de estudiantes durante un ejercicio (HU-07). Los datos de estudiantes sembrados son ficticios. También incluye la búsqueda de estudiantes por código (HU-02), el listado de estudiantes por grupo (HU-03), la consulta de ejercicios (HU-05) y la consulta de grupos disponibles (HU-06).",
   },
   servers: [{ url: "/api" }],
   tags: [
@@ -41,6 +41,7 @@ export const swaggerDocument = {
     { name: "Estudiantes", description: "HU-01. Listado de estudiantes de la institución" },
     { name: "Ejercicios", description: "HU-04. Registro de ejercicios de emergencia" },
     { name: "Verificaciones", description: "HU-07. Verificación de estudiantes durante un ejercicio" },
+    { name: "Grupos", description: "HU-06. Grupos disponibles para seleccionar en un ejercicio" },
   ],
   components: {
     securitySchemes: {
@@ -482,7 +483,10 @@ export const swaggerDocument = {
         description:
           "Requiere `estudiantes.consultar`. Devuelve solo estudiantes activos, ordenados por apellido y nombre. Cada registro incluye el código único, los nombres y el grupo. No expone documento, contacto ni otros datos personales. El rol operativo `user` y el rol `admin` tienen este permiso.",
         security: bearerAuth,
-        parameters: paramsPagina,
+        parameters: [
+          ...paramsPagina,
+          { name: "grupoId", in: "query" as const, required: false, description: "HU-03. Solo los estudiantes de ese grupo. Si el grupo no tiene estudiantes, se informa en `msg` y `datos` llega vacío.", schema: { type: "integer", minimum: 1 } },
+        ],
         responses: {
           "200": {
             description: "Listado obtenido",
@@ -503,6 +507,67 @@ export const swaggerDocument = {
                         totalPaginas: { type: "integer" },
                       },
                     },
+                  },
+                },
+              },
+            },
+          },
+          "401": respuestaError,
+          "403": respuestaError,
+        },
+      },
+    },
+    "/estudiantes/codigo/{codigo}": {
+      get: {
+        tags: ["Estudiantes"],
+        summary: "HU-02. Buscar un estudiante por su código único",
+        description:
+          "Requiere `estudiantes.consultar`. Devuelve el estudiante activo con ese código y los mismos campos del listado. Si el código no existe responde 404 con el mensaje de que no se encontraron resultados. El código no puede llegar vacío.",
+        security: bearerAuth,
+        parameters: [
+          { name: "codigo", in: "path", required: true, schema: { type: "string", example: "AGP-5001" } },
+        ],
+        responses: {
+          "200": {
+            description: "Estudiante encontrado",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: { $ref: "#/components/schemas/EstudianteListado" },
+                  },
+                },
+              },
+            },
+          },
+          "400": respuestaError,
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+        },
+      },
+    },
+    "/grupos": {
+      get: {
+        tags: ["Grupos"],
+        summary: "HU-06. Consultar los grupos disponibles",
+        description:
+          "Requiere `grupos.consultar`. Devuelve los grupos activos ordenados por código, para seleccionar el grupo que participa en un ejercicio.",
+        security: bearerAuth,
+        responses: {
+          "200": {
+            description: "Grupos obtenidos",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: { type: "array", items: { $ref: "#/components/schemas/GrupoResumen" } },
                   },
                 },
               },
@@ -577,6 +642,42 @@ export const swaggerDocument = {
             },
           },
           "400": respuestaError,
+          "401": respuestaError,
+          "403": respuestaError,
+        },
+      },
+      get: {
+        tags: ["Ejercicios"],
+        summary: "HU-05. Consultar los ejercicios registrados",
+        description:
+          "Requiere `ejercicios.consultar`. Devuelve los ejercicios del más reciente al más antiguo, con su fecha y tipo de escenario. Si todavía no existen ejercicios se informa en `msg` y `datos` llega vacío.",
+        security: bearerAuth,
+        parameters: paramsPagina,
+        responses: {
+          "200": {
+            description: "Listado obtenido",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        datos: { type: "array", items: { $ref: "#/components/schemas/EjercicioEmergencia" } },
+                        total: { type: "integer" },
+                        pagina: { type: "integer" },
+                        limite: { type: "integer" },
+                        totalPaginas: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           "401": respuestaError,
           "403": respuestaError,
         },
