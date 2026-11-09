@@ -29,7 +29,7 @@ export const swaggerDocument = {
     title: "simulaemergencias API",
     version: "1.0.0",
     description:
-      "API de SimulaEmergencias para Ágape School. Incluye autenticación JWT, roles y permisos, el listado de estudiantes (HU-01), el registro de ejercicios de emergencia (HU-04) y la verificación de estudiantes durante un ejercicio (HU-07). Los datos de estudiantes sembrados son ficticios.",
+      "API de SimulaEmergencias para Ágape School. Cubre el flujo Must have de estudiantes, grupos, ejercicios y verificaciones (HU-01, HU-02, HU-03, HU-04, HU-06, HU-07 y HU-14). Los datos de estudiantes sembrados son ficticios.",
   },
   servers: [{ url: "/api" }],
   tags: [
@@ -38,9 +38,10 @@ export const swaggerDocument = {
     { name: "Recuperacion", description: "Recuperación de contraseña por correo" },
     { name: "Sistema", description: "Monitoreo / healthcheck" },
     { name: "Recursos", description: "Módulo de ejemplo (CRUD)" },
-    { name: "Estudiantes", description: "HU-01. Listado de estudiantes de la institución" },
-    { name: "Ejercicios", description: "HU-04. Registro de ejercicios de emergencia" },
-    { name: "Verificaciones", description: "HU-07. Verificación de estudiantes durante un ejercicio" },
+    { name: "Estudiantes", description: "HU-01 y HU-02. Listado y búsqueda por código único" },
+    { name: "Grupos", description: "HU-03 y HU-06. Estudiantes de un grupo y grupos disponibles" },
+    { name: "Ejercicios", description: "HU-04, HU-06 y HU-14. Registro, selección de grupo y consulta" },
+    { name: "Verificaciones", description: "HU-07 y HU-14. Registro y consulta de verificaciones" },
   ],
   components: {
     securitySchemes: {
@@ -91,7 +92,7 @@ export const swaggerDocument = {
         description: "Campos aprobados para identificar a un participante. No incluye datos personales adicionales.",
         properties: {
           id: { type: "integer" },
-          codigoUnico: { type: "string", example: "AGP-5001" },
+          codigoUnico: { type: "string", example: "AGAPE-009", description: "Formato AGAPE-001." },
           nombres: { type: "string", example: "Camila" },
           apellidos: { type: "string", example: "Restrepo Gil" },
           grupo: { $ref: "#/components/schemas/GrupoResumen" },
@@ -114,6 +115,22 @@ export const swaggerDocument = {
           descripcion: { type: "string", nullable: true },
           creadoEn: { type: "string", format: "date-time" },
           registradoPor: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              nombre: { type: "string" },
+            },
+          },
+        },
+      },
+      GrupoSeleccionado: {
+        type: "object",
+        description: "Grupo elegido para verificar dentro de un ejercicio. Identifica el salón con el que se continúa el registro.",
+        properties: {
+          id: { type: "integer" },
+          seleccionadoEn: { type: "string", format: "date-time" },
+          grupo: { $ref: "#/components/schemas/GrupoResumen" },
+          seleccionadoPor: {
             type: "object",
             properties: {
               id: { type: "integer" },
@@ -513,7 +530,76 @@ export const swaggerDocument = {
         },
       },
     },
+    "/estudiantes/codigo/{codigoUnico}": {
+      get: {
+        tags: ["Estudiantes"],
+        summary: "HU-02. Buscar un estudiante por código único",
+        description:
+          "Requiere `estudiantes.consultar`. El código debe tener el formato AGAPE-001. Si no existe, responde que no se encontraron resultados. La búsqueda no crea registros.",
+        security: bearerAuth,
+        parameters: [
+          { name: "codigoUnico", in: "path", required: true, schema: { type: "string", example: "AGAPE-001" } },
+        ],
+        responses: {
+          "200": { description: "Estudiante encontrado" },
+          "400": respuestaError,
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+        },
+      },
+    },
+    "/grupos": {
+      get: {
+        tags: ["Grupos"],
+        summary: "HU-06. Consultar los grupos disponibles",
+        description: "Requiere `grupos.consultar`. Devuelve los grupos activos que se pueden seleccionar para un ejercicio.",
+        security: bearerAuth,
+        parameters: paramsPagina,
+        responses: {
+          "200": { description: "Grupos obtenidos. Si no hay grupos, el mensaje lo indica y la lista llega vacía." },
+          "401": respuestaError,
+          "403": respuestaError,
+        },
+      },
+    },
+    "/grupos/{grupoId}/estudiantes": {
+      get: {
+        tags: ["Grupos"],
+        summary: "HU-03. Consultar los estudiantes de un grupo",
+        description:
+          "Requiere `estudiantes.consultar`. Si el grupo existe y no tiene estudiantes, responde 200 con la lista vacía y el mensaje correspondiente.",
+        security: bearerAuth,
+        parameters: [
+          { name: "grupoId", in: "path", required: true, schema: { type: "integer", minimum: 1 } },
+          ...paramsPagina,
+        ],
+        responses: {
+          "200": { description: "Estudiantes del grupo, o aviso de que no tiene registros asociados" },
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+        },
+      },
+    },
     "/ejercicios": {
+      get: {
+        tags: ["Ejercicios"],
+        summary: "HU-14. Consultar los ejercicios guardados",
+        description: "Requiere `ejercicios.consultar`. Los registros confirmados permanecen disponibles. Se puede filtrar por `tipoEscenario` y `fecha`.",
+        security: bearerAuth,
+        parameters: [
+          ...paramsPagina,
+          { name: "tipoEscenario", in: "query", required: false, schema: { $ref: "#/components/schemas/TipoEscenario" } },
+          { name: "fecha", in: "query", required: false, schema: { type: "string", format: "date" } },
+        ],
+        responses: {
+          "200": { description: "Ejercicios obtenidos" },
+          "400": respuestaError,
+          "401": respuestaError,
+          "403": respuestaError,
+        },
+      },
       post: {
         tags: ["Ejercicios"],
         summary: "HU-04. Registrar un ejercicio de emergencia",
@@ -582,12 +668,109 @@ export const swaggerDocument = {
         },
       },
     },
+    "/ejercicios/{id}": {
+      get: {
+        tags: ["Ejercicios"],
+        summary: "HU-14. Consultar un ejercicio guardado",
+        description: "Requiere `ejercicios.consultar`. Incluye los grupos ya seleccionados para ese ejercicio.",
+        security: bearerAuth,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+        responses: {
+          "200": { description: "Ejercicio obtenido" },
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+        },
+      },
+    },
+    "/ejercicios/{ejercicioId}/grupos": {
+      get: {
+        tags: ["Ejercicios"],
+        summary: "HU-06. Consultar el grupo seleccionado",
+        description: "Requiere `ejercicios.consultar`. Si todavía no hay selección, la lista llega vacía y el mensaje lo indica.",
+        security: bearerAuth,
+        parameters: [{ name: "ejercicioId", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+        responses: {
+          "200": {
+            description: "Grupos seleccionados",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        ejercicio: {
+                          type: "object",
+                          properties: { id: { type: "integer" }, nombre: { type: "string" } },
+                        },
+                        grupos: { type: "array", items: { $ref: "#/components/schemas/GrupoSeleccionado" } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+        },
+      },
+      post: {
+        tags: ["Ejercicios"],
+        summary: "HU-06. Seleccionar el grupo que se está verificando",
+        description:
+          "Requiere `ejercicios.seleccionarGrupo`. El grupo queda identificado y guardado. No se puede registrar una verificación de ese ejercicio hasta que exista al menos un grupo seleccionado. Repetir la misma selección responde 409.",
+        security: bearerAuth,
+        parameters: [{ name: "ejercicioId", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["grupoId"],
+                properties: { grupoId: { type: "integer", minimum: 1, example: 1 } },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Grupo seleccionado" },
+          "400": respuestaError,
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+          "409": respuestaError,
+        },
+      },
+    },
     "/ejercicios/{ejercicioId}/verificaciones": {
+      get: {
+        tags: ["Verificaciones"],
+        summary: "HU-14. Consultar las verificaciones guardadas",
+        description: "Requiere `verificaciones.consultar`. Devuelve los chequeos confirmados del ejercicio. Si no hay, la lista llega vacía.",
+        security: bearerAuth,
+        parameters: [
+          { name: "ejercicioId", in: "path", required: true, schema: { type: "integer", minimum: 1 } },
+          ...paramsPagina,
+        ],
+        responses: {
+          "200": { description: "Verificaciones obtenidas" },
+          "401": respuestaError,
+          "403": respuestaError,
+          "404": respuestaError,
+        },
+      },
       post: {
         tags: ["Verificaciones"],
         summary: "HU-07. Registrar la verificación de un estudiante",
         description:
-          "Requiere `verificaciones.registrar`. Asocia la verificación al estudiante, a su grupo y al ejercicio. El grupo enviado debe coincidir con el grupo del estudiante. No se permite una segunda verificación del mismo estudiante en el mismo ejercicio (409). El resultado queda en estado VERIFICADO. Un estudiante sin este registro está pendiente de verificación; pendiente no se guarda como fila y no significa que el estudiante esté ausente.",
+          "Requiere `verificaciones.registrar`. El ejercicio debe tener un grupo seleccionado (HU-06) y el `grupoId` debe ser ese grupo y el grupo actual del estudiante. No se permite una segunda verificación del mismo estudiante en el mismo ejercicio (409). El resultado queda en estado VERIFICADO y permanece consultable. Pendiente no se guarda como fila y no significa que el estudiante esté ausente.",
         security: bearerAuth,
         parameters: [
           { name: "ejercicioId", in: "path", required: true, schema: { type: "integer", minimum: 1 } },

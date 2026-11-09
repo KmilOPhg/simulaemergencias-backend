@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../utils/AppError";
 import { ESTADO_VERIFICACION_REGISTRADA, formatearFechaEjercicio } from "../constants/emergencias.constants";
 import { VerificacionCreate, VerificacionRespuesta } from "../types/verificacion.types";
+import { leerPagina, listaPaginada, QueryPagina } from "../utils/paginacion";
 
 const MENSAJE_DUPLICADA = "Este estudiante ya tiene una verificación registrada en este ejercicio.";
 
@@ -23,6 +24,33 @@ const verificacionSelect = {
         select: { id: true, nombre: true },
     },
 } as const;
+
+const presentarVerificacion = (verificacion: {
+    id: number;
+    observacion: string | null;
+    verificadoEn: Date;
+    estudiante: VerificacionRespuesta["estudiante"];
+    grupo: VerificacionRespuesta["grupo"];
+    ejercicio: {
+        id: number;
+        nombre: string;
+        fecha: Date;
+        tipoEscenario: VerificacionRespuesta["ejercicio"]["tipoEscenario"];
+    };
+    registradoPor: VerificacionRespuesta["registradoPor"];
+}): VerificacionRespuesta => ({
+    id: verificacion.id,
+    estado: ESTADO_VERIFICACION_REGISTRADA,
+    observacion: verificacion.observacion,
+    verificadoEn: verificacion.verificadoEn,
+    estudiante: verificacion.estudiante,
+    grupo: verificacion.grupo,
+    ejercicio: {
+        ...verificacion.ejercicio,
+        fecha: formatearFechaEjercicio(verificacion.ejercicio.fecha),
+    },
+    registradoPor: verificacion.registradoPor,
+});
 
 /**
  * HU-07. Registra la verificación de un estudiante dentro de un ejercicio.
@@ -81,6 +109,18 @@ export const registrarVerificacion = async (
         throw new AppError("El estudiante no pertenece al grupo indicado.", 400);
     }
 
+    const gruposSeleccionados = await prisma.ejercicioGrupo.count({ where: { ejercicioId } });
+    if (gruposSeleccionados === 0) {
+        throw new AppError("Debes seleccionar el grupo del ejercicio antes de registrar verificaciones.", 400);
+    }
+    const grupoSeleccionado = await prisma.ejercicioGrupo.findUnique({
+        where: { ejercicioId_grupoId: { ejercicioId, grupoId: grupo.id } },
+        select: { id: true },
+    });
+    if (!grupoSeleccionado) {
+        throw new AppError("El grupo no está seleccionado para este ejercicio.", 400);
+    }
+
     const existente = await prisma.verificacionEstudiante.findUnique({
         where: {
             ejercicioId_estudianteId: {
@@ -106,23 +146,41 @@ export const registrarVerificacion = async (
             select: verificacionSelect,
         });
 
-        return {
-            id: verificacion.id,
-            estado: ESTADO_VERIFICACION_REGISTRADA,
-            observacion: verificacion.observacion,
-            verificadoEn: verificacion.verificadoEn,
-            estudiante: verificacion.estudiante,
-            grupo: verificacion.grupo,
-            ejercicio: {
-                ...verificacion.ejercicio,
-                fecha: formatearFechaEjercicio(verificacion.ejercicio.fecha),
-            },
-            registradoPor: verificacion.registradoPor,
-        };
+        return presentarVerificacion(verificacion);
     } catch (error) {
         if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
             throw new AppError(MENSAJE_DUPLICADA, 409);
         }
         throw error;
     }
+};
+
+/** HU-14. Las verificaciones confirmadas permanecen consultables. */
+export const listarVerificaciones = async (ejercicioId: number, q?: QueryPagina) => {
+    if (!Number.isInteger(ejercicioId) || ejercicioId < 1) {
+        throw new AppError("El ejercicio indicado no es válido.", 400);
+    }
+
+    const ejercicio = await prisma.ejercicioEmergencia.findUnique({
+        where: { id: ejercicioId },
+        select: { id: true },
+    });
+    if (!ejercicio) {
+        throw new AppError("El ejercicio de emergencia no existe.", 404);
+    }
+
+    const { pagina, limite, salto } = leerPagina(q);
+    const where = { ejercicioId };
+    const [verificaciones, total] = await Promise.all([
+        prisma.verificacionEstudiante.findMany({
+            where,
+            skip: salto,
+            take: limite,
+            orderBy: [{ verificadoEn: "asc" }, { id: "asc" }],
+            select: verificacionSelect,
+        }),
+        prisma.verificacionEstudiante.count({ where }),
+    ]);
+
+    return listaPaginada(verificaciones.map(presentarVerificacion), total, pagina, limite);
 };

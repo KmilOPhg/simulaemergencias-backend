@@ -1,10 +1,15 @@
 import { Router } from "express";
-import { query } from "express-validator";
+import { param, query } from "express-validator";
 import asyncWrapper from "../utils/AsyncWrapper";
 import { authenticateToken, checkPermissions, validateRequest } from "../middlewares/auth.middleware";
-import { listarEstudiantesController } from "../controllers/estudiantes.controller";
+import { buscarEstudiantePorCodigoController, listarEstudiantesController } from "../controllers/estudiantes.controller";
 
 const router = Router();
+
+// GET /api/estudiantes/codigo/:codigoUnico — HU-02
+router.get("/codigo/:codigoUnico", [
+    param("codigoUnico").trim().notEmpty().withMessage("El código único es obligatorio"),
+], validateRequest, authenticateToken, checkPermissions(["estudiantes.consultar"]), asyncWrapper(buscarEstudiantePorCodigoController));
 
 // GET /api/estudiantes — HU-01
 router.get("/", [

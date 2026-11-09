@@ -7,6 +7,7 @@ import {
     parsearFechaEjercicio,
 } from "../constants/emergencias.constants";
 import { EjercicioCreate, EjercicioRespuesta } from "../types/ejercicio.types";
+import { leerPagina, listaPaginada, QueryPagina } from "../utils/paginacion";
 
 const textoOpcional = (valor: string | null | undefined): string | null => {
     if (typeof valor !== "string") return null;
@@ -94,4 +95,158 @@ export const crearEjercicio = async (registradoPorId: number, data: EjercicioCre
     });
 
     return presentarEjercicio(ejercicio);
+};
+
+export type FiltroEjercicios = QueryPagina & {
+    tipoEscenario?: unknown;
+    fecha?: unknown;
+};
+
+/** HU-14. Los ejercicios confirmados siguen disponibles para consulta. */
+export const listarEjercicios = async (filtro?: FiltroEjercicios) => {
+    const { pagina, limite, salto } = leerPagina(filtro);
+    const where: { tipoEscenario?: TipoEscenario; fecha?: Date } = {};
+
+    if (typeof filtro?.tipoEscenario === "string" && filtro.tipoEscenario.trim() !== "") {
+        const tipo = filtro.tipoEscenario.trim().toUpperCase();
+        if (!esTipoEscenario(tipo)) {
+            throw new AppError("El tipo de escenario debe ser SISMO, INCENDIO o INTRUSO.", 400);
+        }
+        where.tipoEscenario = tipo;
+    }
+
+    if (typeof filtro?.fecha === "string" && filtro.fecha.trim() !== "") {
+        const fecha = parsearFechaEjercicio(filtro.fecha.trim());
+        if (!fecha) {
+            throw new AppError("La fecha debe ser un día válido con formato AAAA-MM-DD.", 400);
+        }
+        where.fecha = fecha;
+    }
+
+    const [ejercicios, total] = await Promise.all([
+        prisma.ejercicioEmergencia.findMany({
+            where,
+            skip: salto,
+            take: limite,
+            orderBy: [{ fecha: "desc" }, { id: "desc" }],
+            select: ejercicioSelect,
+        }),
+        prisma.ejercicioEmergencia.count({ where }),
+    ]);
+
+    return listaPaginada(ejercicios.map(presentarEjercicio), total, pagina, limite);
+};
+
+export const obtenerEjercicio = async (id: number) => {
+    if (!Number.isInteger(id) || id < 1) {
+        throw new AppError("El ejercicio indicado no es válido.", 400);
+    }
+
+    const ejercicio = await prisma.ejercicioEmergencia.findUnique({
+        where: { id },
+        select: {
+            ...ejercicioSelect,
+            gruposSeleccionados: {
+                orderBy: { creadoEn: "asc" },
+                select: seleccionGrupoSelect,
+            },
+        },
+    });
+    if (!ejercicio) {
+        throw new AppError("El ejercicio de emergencia no existe.", 404);
+    }
+
+    const { gruposSeleccionados, ...resto } = ejercicio;
+    return {
+        ...presentarEjercicio(resto),
+        grupos: gruposSeleccionados.map(presentarSeleccion),
+    };
+};
+
+const seleccionGrupoSelect = {
+    id: true,
+    creadoEn: true,
+    grupo: { select: { id: true, codigo: true, nombre: true } },
+    seleccionadoPor: { select: { id: true, nombre: true } },
+} as const;
+
+const presentarSeleccion = (seleccion: {
+    id: number;
+    creadoEn: Date;
+    grupo: { id: number; codigo: string; nombre: string };
+    seleccionadoPor: { id: number; nombre: string };
+}) => ({
+    id: seleccion.id,
+    seleccionadoEn: seleccion.creadoEn,
+    grupo: seleccion.grupo,
+    seleccionadoPor: seleccion.seleccionadoPor,
+});
+
+/**
+ * HU-06. Deja identificado el grupo que se está verificando en el ejercicio.
+ * La selección queda guardada y puede consultarse después.
+ */
+export const seleccionarGrupoEjercicio = async (ejercicioId: number, grupoId: number, seleccionadoPorId: number) => {
+    if (!Number.isInteger(ejercicioId) || ejercicioId < 1) {
+        throw new AppError("El ejercicio indicado no es válido.", 400);
+    }
+    if (!Number.isInteger(grupoId) || grupoId < 1) {
+        throw new AppError("El grupo es obligatorio. Selecciona el grupo que estás verificando.", 400);
+    }
+
+    const [ejercicio, grupo] = await Promise.all([
+        prisma.ejercicioEmergencia.findUnique({ where: { id: ejercicioId }, select: { id: true, nombre: true } }),
+        prisma.grupo.findFirst({
+            where: { id: grupoId, activo: true },
+            select: { id: true, codigo: true, nombre: true },
+        }),
+    ]);
+    if (!ejercicio) {
+        throw new AppError("El ejercicio de emergencia no existe.", 404);
+    }
+    if (!grupo) {
+        throw new AppError("El grupo no existe.", 404);
+    }
+
+    const yaSeleccionado = await prisma.ejercicioGrupo.findUnique({
+        where: { ejercicioId_grupoId: { ejercicioId, grupoId: grupo.id } },
+        select: { id: true },
+    });
+    if (yaSeleccionado) {
+        throw new AppError("Ese grupo ya está seleccionado para este ejercicio.", 409);
+    }
+
+    const seleccion = await prisma.ejercicioGrupo.create({
+        data: { ejercicioId, grupoId: grupo.id, seleccionadoPorId },
+        select: {
+            ...seleccionGrupoSelect,
+            ejercicio: { select: { id: true, nombre: true } },
+        },
+    });
+
+    return {
+        ...presentarSeleccion(seleccion),
+        ejercicio: seleccion.ejercicio,
+    };
+};
+
+export const listarGruposSeleccionados = async (ejercicioId: number) => {
+    const ejercicio = await prisma.ejercicioEmergencia.findUnique({
+        where: { id: ejercicioId },
+        select: { id: true, nombre: true },
+    });
+    if (!ejercicio) {
+        throw new AppError("El ejercicio de emergencia no existe.", 404);
+    }
+
+    const grupos = await prisma.ejercicioGrupo.findMany({
+        where: { ejercicioId },
+        orderBy: { creadoEn: "asc" },
+        select: seleccionGrupoSelect,
+    });
+
+    return {
+        ejercicio,
+        grupos: grupos.map(presentarSeleccion),
+    };
 };

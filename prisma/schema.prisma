@@ -72,6 +72,7 @@ model Usuario {
   tokenRecuperacion         TokenRecuperacion[]
   ejerciciosRegistrados     EjercicioEmergencia[]    @relation("EjercicioRegistradoPor")
   verificacionesRegistradas VerificacionEstudiante[] @relation("VerificacionRegistradaPor")
+  gruposSeleccionados       EjercicioGrupo[]         @relation("GrupoSeleccionadoPor")
 
   @@map("usuarios")
 }
@@ -142,8 +143,9 @@ model Grupo {
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
-  estudiantes    Estudiante[]
-  verificaciones VerificacionEstudiante[]
+  estudiantes            Estudiante[]
+  verificaciones         VerificacionEstudiante[]
+  ejerciciosSeleccionados EjercicioGrupo[]
 
   @@map("grupos")
 }
@@ -189,8 +191,9 @@ model EjercicioEmergencia {
   creadoEn        DateTime      @default(now())
   actualizadoEn   DateTime      @updatedAt
 
-  registradoPor  Usuario                   @relation("EjercicioRegistradoPor", fields: [registradoPorId], references: [id])
-  verificaciones VerificacionEstudiante[]
+  registradoPor       Usuario                   @relation("EjercicioRegistradoPor", fields: [registradoPorId], references: [id])
+  verificaciones      VerificacionEstudiante[]
+  gruposSeleccionados EjercicioGrupo[]
 
   @@index([fecha])
   @@index([tipoEscenario])
@@ -223,4 +226,25 @@ model VerificacionEstudiante {
   @@unique([ejercicioId, estudianteId])
   @@index([ejercicioId, grupoId])
   @@map("verificaciones_estudiantes")
+}
+
+// ===========================================================
+// HU-06. Grupo seleccionado para verificar dentro de un ejercicio.
+// La verificación no puede registrarse si este vínculo no existe.
+// ===========================================================
+
+model EjercicioGrupo {
+  id                Int      @id @default(autoincrement())
+  ejercicioId       Int
+  grupoId           Int
+  seleccionadoPorId Int
+  creadoEn          DateTime @default(now())
+
+  ejercicio       EjercicioEmergencia @relation(fields: [ejercicioId], references: [id])
+  grupo           Grupo               @relation(fields: [grupoId], references: [id])
+  seleccionadoPor Usuario             @relation("GrupoSeleccionadoPor", fields: [seleccionadoPorId], references: [id])
+
+  @@unique([ejercicioId, grupoId])
+  @@index([grupoId])
+  @@map("ejercicios_grupos")
 }

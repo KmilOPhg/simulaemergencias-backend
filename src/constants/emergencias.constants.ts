@@ -30,3 +30,10 @@ export const esHoraInicio = (valor: string): boolean => /^([01]\d|2[0-3]):[0-5]\
 
 /** La verificación registrada significa que el responsable hizo el chequeo. No describe asistencia física. */
 export const ESTADO_VERIFICACION_REGISTRADA = "VERIFICADO" as const;
+
+/** Código institucional ficticio. Ejemplo: AGAPE-001. */
+export const FORMATO_CODIGO_UNICO = /^AGAPE-\d{3,6}$/;
+
+export const normalizarCodigoUnico = (valor: string): string => valor.trim().toUpperCase();
+
+export const esCodigoUnico = (valor: string): boolean => FORMATO_CODIGO_UNICO.test(normalizarCodigoUnico(valor));
