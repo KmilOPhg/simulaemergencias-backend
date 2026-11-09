@@ -1,13 +1,13 @@
 import { prisma } from "../../lib/prisma";
 import { TipoEscenario } from "../generated/prisma/client";
 import { AppError } from "../utils/AppError";
+import { leerPagina, listaPaginada, QueryPagina } from "../utils/paginacion";
 import {
     esTipoEscenario,
     formatearFechaEjercicio,
     parsearFechaEjercicio,
 } from "../constants/emergencias.constants";
 import { EjercicioCreate, EjercicioRespuesta } from "../types/ejercicio.types";
-import { leerPagina, listaPaginada, QueryPagina } from "../utils/paginacion";
 
 const textoOpcional = (valor: string | null | undefined): string | null => {
     if (typeof valor !== "string") return null;

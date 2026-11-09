@@ -35,7 +35,7 @@ src/
     recuperacion.*          Recuperación de contraseña
     sistema.*               Healthcheck
     recursos.*               Módulo de ejemplo (CRUD) — úsalo como plantilla
-    estudiantes.*            HU-01 y HU-02. Listado y búsqueda por código
+    estudiantes.*            HU-01, HU-02 y HU-03. Listado, búsqueda y filtro por grupo
     grupos.*                 HU-03 y HU-06. Grupos y estudiantes del grupo
     ejercicios.*             HU-04, HU-06 y HU-14. Alta, selección de grupo y consulta
     verificaciones.*         HU-07 y HU-14. Registro y consulta de verificaciones
@@ -95,14 +95,15 @@ Estas historias cubren la consulta de participantes, el alta del ejercicio, la s
 ### Reglas de negocio
 
 - El listado y la búsqueda solo muestran `id`, `codigoUnico`, `nombres`, `apellidos` y el grupo. No se devuelven documento, contacto ni otros datos personales.
-- El código único tiene el formato `AGAPE-001`. Si el formato es inválido, la búsqueda responde `400`. Si el código no existe, responde `404` y no crea registros.
+- El código único vigente es `AGAPE-001`. También se acepta el código anterior `AGP-1001`. Si el formato es inválido, la búsqueda responde `400`. Si el código no existe, responde `404` y no crea registros.
 - Un grupo sin estudiantes responde `200` con la lista vacía y el mensaje «El grupo no tiene estudiantes asociados».
 - Un ejercicio exige nombre, fecha (`AAAA-MM-DD`) y tipo de escenario: `SISMO`, `INCENDIO` o `INTRUSO`. Lugar, descripción y hora de inicio (`HH:mm`) son opcionales.
 - Antes de verificar hay que seleccionar el grupo del ejercicio. Sin esa selección, la verificación responde `400`.
 - El `grupoId` de la verificación debe ser un grupo ya seleccionado y el grupo actual del estudiante.
 - Solo puede existir una verificación por estudiante en cada ejercicio. Un segundo intento responde `409`.
 - `VERIFICADO` significa que el responsable registró el chequeo. No significa, por sí mismo, que el estudiante estuviera presente o ausente. Pendiente es la ausencia de esa fila y no debe leerse como inasistencia.
-- Ejercicios, grupos seleccionados y verificaciones quedan en PostgreSQL y se vuelven a consultar con los `GET` de HU-14. Si el guardado falla, la API responde el error y no deja el registro a medias.
+- El listado también acepta `?grupoId=` para ver solo un grupo. Si el grupo no existe responde `404`. Si no tiene estudiantes, el mensaje lo indica y `datos` llega vacío.
+- Ejercicios, grupos seleccionados y verificaciones quedan en PostgreSQL y se vuelven a consultar con los `GET`. Si todavía no hay ejercicios, la consulta lo informa. Si el guardado falla, la API responde el error y no deja el registro a medias.
 
 ### Endpoints
 
@@ -112,7 +113,7 @@ Todos requieren `Authorization: Bearer <token>`.
 | --- | --- | --- |
 | HU-01 | `GET /api/estudiantes?page=1&limit=20` | `estudiantes.consultar` |
 | HU-02 | `GET /api/estudiantes/codigo/AGAPE-001` | `estudiantes.consultar` |
-| HU-03 | `GET /api/grupos/{grupoId}/estudiantes` | `estudiantes.consultar` |
+| HU-03 | `GET /api/estudiantes?grupoId=1` y `GET /api/grupos/{grupoId}/estudiantes` | `estudiantes.consultar` |
 | HU-06 | `GET /api/grupos` | `grupos.consultar` |
 | HU-04 | `POST /api/ejercicios` | `ejercicios.crear` |
 | HU-06 | `POST /api/ejercicios/{ejercicioId}/grupos` | `ejercicios.seleccionarGrupo` |
@@ -151,7 +152,14 @@ POST /api/ejercicios/1/verificaciones
 }
 ```
 
-La semilla crea los grupos `1A` (Primero A), `3B` (Tercero B) y `5A` (Quinto A), con cuatro estudiantes ficticios en cada uno. Sus códigos van de `AGAPE-001` a `AGAPE-012`.
+También se puede filtrar el listado o buscar por código. El `grupoId` sale de `GET /api/grupos`:
+
+```
+GET /api/estudiantes?grupoId=1
+GET /api/estudiantes/codigo/AGAPE-001
+```
+
+La semilla crea los grupos `1A` (Primero A), `3B` (Tercero B) y `5A` (Quinto A), con cuatro estudiantes ficticios en cada uno. Sus códigos van de `AGAPE-001` a `AGAPE-012`. Si ya existían los códigos `AGP-1001` a `AGP-5004`, el seed los renombra.
 
 La documentación interactiva de estos contratos está en [http://localhost:1206/api-docs](http://localhost:1206/api-docs).
 

@@ -19,12 +19,25 @@ const estudianteListadoSelect = {
 
 /**
  * HU-01. Listado de estudiantes activos.
- * Solo devuelve código, nombre y grupo: los datos necesarios para identificar
- * al participante. No incluye información personal adicional.
+ * HU-03. Si llega grupoId, solo trae los estudiantes de ese grupo.
  */
-export const listarEstudiantes = async (q?: QueryPagina) => {
+export const listarEstudiantes = async (q?: QueryPagina & { grupoId?: number }) => {
     const { pagina, limite, salto } = leerPagina(q);
-    const where = { activo: true };
+    const where: { activo: true; grupoId?: number } = { activo: true };
+
+    if (q?.grupoId !== undefined) {
+        if (!Number.isInteger(q.grupoId) || q.grupoId < 1) {
+            throw new AppError("El grupo indicado no es válido.", 400);
+        }
+        const grupo = await prisma.grupo.findFirst({
+            where: { id: q.grupoId, activo: true },
+            select: { id: true },
+        });
+        if (!grupo) {
+            throw new AppError("El grupo no existe.", 404);
+        }
+        where.grupoId = grupo.id;
+    }
 
     const [estudiantes, total] = await Promise.all([
         prisma.estudiante.findMany({
@@ -42,7 +55,7 @@ export const listarEstudiantes = async (q?: QueryPagina) => {
 
 /**
  * HU-02. Busca un estudiante por su código único.
- * No crea ni modifica registros.
+ * Acepta AGAPE-001 y el código anterior AGP-1001. No crea registros.
  */
 export const buscarEstudiantePorCodigo = async (codigo: string) => {
     const codigoUnico = normalizarCodigoUnico(codigo ?? "");
@@ -55,7 +68,7 @@ export const buscarEstudiantePorCodigo = async (codigo: string) => {
         select: estudianteListadoSelect,
     });
     if (!estudiante) {
-        throw new AppError("No se encontraron resultados para ese código.", 404);
+        throw new AppError("No se encontraron resultados para el código ingresado.", 404);
     }
     return estudiante;
 };

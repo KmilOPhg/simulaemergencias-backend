@@ -34,7 +34,7 @@ describe("ejercicios de emergencia", () => {
         assert.equal(esCodigoUnico("AGAPE-001"), true);
         assert.equal(esCodigoUnico(" agape-001 "), true);
         assert.equal(normalizarCodigoUnico(" agape-001 "), "AGAPE-001");
-        assert.equal(esCodigoUnico("AGP-1001"), false);
+        assert.equal(esCodigoUnico("AGP-1001"), true);
         assert.equal(esCodigoUnico("AGAPE-1"), false);
         assert.equal(esCodigoUnico("AGAPE-001A"), false);
     });

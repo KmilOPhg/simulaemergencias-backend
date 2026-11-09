@@ -499,7 +499,10 @@ export const swaggerDocument = {
         description:
           "Requiere `estudiantes.consultar`. Devuelve solo estudiantes activos, ordenados por apellido y nombre. Cada registro incluye el código único, los nombres y el grupo. No expone documento, contacto ni otros datos personales. El rol operativo `user` y el rol `admin` tienen este permiso.",
         security: bearerAuth,
-        parameters: paramsPagina,
+        parameters: [
+          ...paramsPagina,
+          { name: "grupoId", in: "query" as const, required: false, description: "HU-03. Solo los estudiantes de ese grupo. Si el grupo no tiene estudiantes, se informa en `msg` y `datos` llega vacío.", schema: { type: "integer", minimum: 1 } },
+        ],
         responses: {
           "200": {
             description: "Listado obtenido",
@@ -530,18 +533,32 @@ export const swaggerDocument = {
         },
       },
     },
-    "/estudiantes/codigo/{codigoUnico}": {
+    "/estudiantes/codigo/{codigo}": {
       get: {
         tags: ["Estudiantes"],
-        summary: "HU-02. Buscar un estudiante por código único",
+        summary: "HU-02. Buscar un estudiante por su código único",
         description:
-          "Requiere `estudiantes.consultar`. El código debe tener el formato AGAPE-001. Si no existe, responde que no se encontraron resultados. La búsqueda no crea registros.",
+          "Requiere `estudiantes.consultar`. El código vigente es AGAPE-001; también se acepta el código anterior AGP-1001. Si el formato es inválido responde 400. Si no existe, responde 404 y no crea registros.",
         security: bearerAuth,
         parameters: [
-          { name: "codigoUnico", in: "path", required: true, schema: { type: "string", example: "AGAPE-001" } },
+          { name: "codigo", in: "path", required: true, schema: { type: "string", example: "AGAPE-001" } },
         ],
         responses: {
-          "200": { description: "Estudiante encontrado" },
+          "200": {
+            description: "Estudiante encontrado",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: { $ref: "#/components/schemas/EstudianteListado" },
+                  },
+                },
+              },
+            },
+          },
           "400": respuestaError,
           "401": respuestaError,
           "403": respuestaError,
@@ -553,11 +570,25 @@ export const swaggerDocument = {
       get: {
         tags: ["Grupos"],
         summary: "HU-06. Consultar los grupos disponibles",
-        description: "Requiere `grupos.consultar`. Devuelve los grupos activos que se pueden seleccionar para un ejercicio.",
+        description:
+          "Requiere `grupos.consultar`. Devuelve los grupos activos ordenados por código, para seleccionar el grupo que participa en un ejercicio.",
         security: bearerAuth,
-        parameters: paramsPagina,
         responses: {
-          "200": { description: "Grupos obtenidos. Si no hay grupos, el mensaje lo indica y la lista llega vacía." },
+          "200": {
+            description: "Grupos obtenidos. Si no hay grupos, el mensaje lo indica y la lista llega vacía.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "success" },
+                    msg: { type: "string" },
+                    data: { type: "array", items: { $ref: "#/components/schemas/GrupoResumen" } },
+                  },
+                },
+              },
+            },
+          },
           "401": respuestaError,
           "403": respuestaError,
         },
@@ -568,7 +599,7 @@ export const swaggerDocument = {
         tags: ["Grupos"],
         summary: "HU-03. Consultar los estudiantes de un grupo",
         description:
-          "Requiere `estudiantes.consultar`. Si el grupo existe y no tiene estudiantes, responde 200 con la lista vacía y el mensaje correspondiente.",
+          "Requiere `estudiantes.consultar`. Si el grupo existe y no tiene estudiantes, responde 200 con la lista vacía y el mensaje correspondiente. El mismo filtro está en `GET /estudiantes?grupoId=`.",
         security: bearerAuth,
         parameters: [
           { name: "grupoId", in: "path", required: true, schema: { type: "integer", minimum: 1 } },

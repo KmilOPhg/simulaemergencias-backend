@@ -10,8 +10,8 @@ const pagina = [
     query("limit").optional().isInt({ min: 1, max: 100 }).withMessage("El límite debe estar entre 1 y 100"),
 ];
 
-// GET /api/grupos — HU-06, consulta de grupos disponibles
-router.get("/", pagina, validateRequest, authenticateToken, checkPermissions(["grupos.consultar"]), asyncWrapper(listarGruposController));
+// GET /api/grupos — HU-06
+router.get("/", authenticateToken, checkPermissions(["grupos.consultar"]), asyncWrapper(listarGruposController));
 
 // GET /api/grupos/:grupoId/estudiantes — HU-03
 router.get("/:grupoId/estudiantes", [

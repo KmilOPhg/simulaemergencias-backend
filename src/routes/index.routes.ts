@@ -27,7 +27,7 @@ router.use("/sistema", sistemaRoutes);
 // Módulo de ejemplo — bórralo o renómbralo cuando crees tus propios módulos
 router.use("/recursos", recursosRoutes);
 
-// HU-01 y HU-02. Listado y búsqueda de estudiantes
+// HU-01, HU-02 y HU-03. Listado, búsqueda y filtro por grupo
 router.use("/estudiantes", estudiantesRoutes);
 
 // HU-03 y HU-06. Grupos disponibles y estudiantes de un grupo

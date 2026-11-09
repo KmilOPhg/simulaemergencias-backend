@@ -3,9 +3,9 @@ import { sendSuccessResponse } from "../utils/JSONResponse";
 import { listarEstudiantesDeGrupo } from "../services/estudiantes";
 import { listarGrupos } from "../services/grupos";
 
-export const listarGruposController = async (req: Request, res: Response) => {
-    const data = await listarGrupos({ page: req.query.page, limit: req.query.limit });
-    const msg = data.total === 0
+export const listarGruposController = async (_req: Request, res: Response) => {
+    const data = await listarGrupos();
+    const msg = data.length === 0
         ? "No hay grupos disponibles."
         : "Grupos obtenidos correctamente";
     return sendSuccessResponse(res, 200, msg, data);

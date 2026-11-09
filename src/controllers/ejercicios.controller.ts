@@ -25,7 +25,10 @@ export const listarEjerciciosController = async (req: Request, res: Response) =>
         tipoEscenario: req.query.tipoEscenario,
         fecha: req.query.fecha,
     });
-    return sendSuccessResponse(res, 200, "Ejercicios obtenidos correctamente", data);
+    const msg = data.total === 0
+        ? "Todavía no existen ejercicios registrados"
+        : "Ejercicios obtenidos correctamente";
+    return sendSuccessResponse(res, 200, msg, data);
 };
 
 export const obtenerEjercicioController = async (req: Request, res: Response) => {
