@@ -8,6 +8,7 @@ import estudiantesRoutes from "./estudiantes.routes";
 import ejerciciosRoutes from "./ejercicios.routes";
 import verificacionesRoutes from "./verificaciones.routes";
 import gruposRoutes from "./grupos.routes";
+import ejercicioGruposRoutes from "./ejercicioGrupos.routes";
 
 const router = Router();
 
@@ -26,16 +27,19 @@ router.use("/sistema", sistemaRoutes);
 // Módulo de ejemplo — bórralo o renómbralo cuando crees tus propios módulos
 router.use("/recursos", recursosRoutes);
 
-// HU-01. Listado de estudiantes
+// HU-01, HU-02 y HU-03. Listado, búsqueda y filtro por grupo
 router.use("/estudiantes", estudiantesRoutes);
 
-// HU-04. Registro de ejercicios de emergencia
+// HU-03 y HU-06. Grupos disponibles y estudiantes de un grupo
+router.use("/grupos", gruposRoutes);
+
+// HU-04 y HU-14. Registro y consulta de ejercicios
 router.use("/ejercicios", ejerciciosRoutes);
 
-// HU-07. Verificación de un estudiante dentro de un ejercicio
-router.use("/ejercicios/:ejercicioId/verificaciones", verificacionesRoutes);
+// HU-06. Selección del grupo que se está verificando
+router.use("/ejercicios/:ejercicioId/grupos", ejercicioGruposRoutes);
 
-// HU-06. Grupos disponibles
-router.use("/grupos", gruposRoutes);
+// HU-07 y HU-14. Registro y consulta de verificaciones
+router.use("/ejercicios/:ejercicioId/verificaciones", verificacionesRoutes);
 
 export default router;

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+    esCodigoUnico,
     esHoraInicio,
     esTipoEscenario,
     formatearFechaEjercicio,
+    normalizarCodigoUnico,
     parsearFechaEjercicio,
 } from "./emergencias.constants";
 
@@ -26,6 +28,15 @@ describe("ejercicios de emergencia", () => {
         assert.equal(parsearFechaEjercicio("2026-02-31"), null);
         assert.equal(parsearFechaEjercicio("26/10/2026"), null);
         assert.equal(parsearFechaEjercicio("2026-10-26T09:30:00"), null);
+    });
+
+    it("acepta el código único AGAPE-001 y rechaza otros formatos", () => {
+        assert.equal(esCodigoUnico("AGAPE-001"), true);
+        assert.equal(esCodigoUnico(" agape-001 "), true);
+        assert.equal(normalizarCodigoUnico(" agape-001 "), "AGAPE-001");
+        assert.equal(esCodigoUnico("AGP-1001"), true);
+        assert.equal(esCodigoUnico("AGAPE-1"), false);
+        assert.equal(esCodigoUnico("AGAPE-001A"), false);
     });
 
     it("valida la hora de inicio en formato HH:mm", () => {

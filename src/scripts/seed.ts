@@ -43,15 +43,16 @@ const PERMISOS = [
     { codigo: "recursos.actualizar", nombre: "Actualizar recursos", descripcion: "Modificar recursos", modulo: "RECURSOS" },
     { codigo: "recursos.deshabilitar", nombre: "Deshabilitar recursos", descripcion: "Activar/inactivar recursos", modulo: "RECURSOS" },
     // ESTUDIANTES (HU-01)
-    { codigo: "estudiantes.consultar", nombre: "Consultar estudiantes", descripcion: "Listar estudiantes con los campos necesarios para identificarlos", modulo: "ESTUDIANTES" },
-    // EJERCICIOS (HU-04)
+    { codigo: "estudiantes.consultar", nombre: "Consultar estudiantes", descripcion: "Listar estudiantes, buscar por código único y consultar por grupo", modulo: "ESTUDIANTES" },
+    // GRUPOS (HU-03 y HU-06)
+    { codigo: "grupos.consultar", nombre: "Consultar grupos", descripcion: "Listar los grupos disponibles para seleccionar", modulo: "GRUPOS" },
+    // EJERCICIOS (HU-04, HU-06 y HU-14)
     { codigo: "ejercicios.crear", nombre: "Registrar ejercicios", descripcion: "Registrar un ejercicio de emergencia", modulo: "EJERCICIOS" },
-    // VERIFICACIONES (HU-07)
+    { codigo: "ejercicios.consultar", nombre: "Consultar ejercicios", descripcion: "Consultar ejercicios y grupos seleccionados ya guardados", modulo: "EJERCICIOS" },
+    { codigo: "ejercicios.seleccionarGrupo", nombre: "Seleccionar grupo del ejercicio", descripcion: "Asociar el grupo que se está verificando a un ejercicio", modulo: "EJERCICIOS" },
+    // VERIFICACIONES (HU-07 y HU-14)
     { codigo: "verificaciones.registrar", nombre: "Registrar verificaciones", descripcion: "Registrar la verificación de un estudiante en un ejercicio", modulo: "VERIFICACIONES" },
-    // EJERCICIOS (HU-05)
-    { codigo: "ejercicios.consultar", nombre: "Consultar ejercicios", descripcion: "Listar los ejercicios de emergencia registrados", modulo: "EJERCICIOS" },
-    // GRUPOS (HU-06)
-    { codigo: "grupos.consultar", nombre: "Consultar grupos", descripcion: "Listar los grupos disponibles", modulo: "GRUPOS" },
+    { codigo: "verificaciones.consultar", nombre: "Consultar verificaciones", descripcion: "Consultar las verificaciones confirmadas de un ejercicio", modulo: "VERIFICACIONES" },
 ] as const;
 
 async function seedPermisos() {
@@ -86,10 +87,12 @@ async function seedRolPermisos() {
     const permisosOperativos = new Set([
         "recursos.consultar",
         "estudiantes.consultar",
-        "ejercicios.crear",
-        "verificaciones.registrar",
-        "ejercicios.consultar",
         "grupos.consultar",
+        "ejercicios.crear",
+        "ejercicios.consultar",
+        "ejercicios.seleccionarGrupo",
+        "verificaciones.registrar",
+        "verificaciones.consultar",
     ]);
     const permisosUser = permisos.filter((p) => permisosOperativos.has(p.codigo));
     await prisma.rolPermiso.createMany({
@@ -136,18 +139,18 @@ const GRUPOS = [
 ] as const;
 
 const ESTUDIANTES = [
-    { codigoUnico: "AGP-1001", nombres: "Lucía", apellidos: "Herrera Díaz", grupo: "1A" },
-    { codigoUnico: "AGP-1002", nombres: "Mateo", apellidos: "Rojas Peña", grupo: "1A" },
-    { codigoUnico: "AGP-1003", nombres: "Sofía", apellidos: "Castro Luna", grupo: "1A" },
-    { codigoUnico: "AGP-1004", nombres: "Emiliano", apellidos: "Vargas Ortiz", grupo: "1A" },
-    { codigoUnico: "AGP-3001", nombres: "Valentina", apellidos: "Morales Ruiz", grupo: "3B" },
-    { codigoUnico: "AGP-3002", nombres: "Samuel", apellidos: "Delgado Cruz", grupo: "3B" },
-    { codigoUnico: "AGP-3003", nombres: "Isabella", apellidos: "Núñez Pardo", grupo: "3B" },
-    { codigoUnico: "AGP-3004", nombres: "Tomás", apellidos: "Guerrero Silva", grupo: "3B" },
-    { codigoUnico: "AGP-5001", nombres: "Camila", apellidos: "Restrepo Gil", grupo: "5A" },
-    { codigoUnico: "AGP-5002", nombres: "Juan", apellidos: "Osorio Méndez", grupo: "5A" },
-    { codigoUnico: "AGP-5003", nombres: "Mariana", apellidos: "Cifuentes León", grupo: "5A" },
-    { codigoUnico: "AGP-5004", nombres: "Andrés", apellidos: "Palacios Ríos", grupo: "5A" },
+    { codigoUnico: "AGAPE-001", codigoAnterior: "AGP-1001", nombres: "Lucía", apellidos: "Herrera Díaz", grupo: "1A" },
+    { codigoUnico: "AGAPE-002", codigoAnterior: "AGP-1002", nombres: "Mateo", apellidos: "Rojas Peña", grupo: "1A" },
+    { codigoUnico: "AGAPE-003", codigoAnterior: "AGP-1003", nombres: "Sofía", apellidos: "Castro Luna", grupo: "1A" },
+    { codigoUnico: "AGAPE-004", codigoAnterior: "AGP-1004", nombres: "Emiliano", apellidos: "Vargas Ortiz", grupo: "1A" },
+    { codigoUnico: "AGAPE-005", codigoAnterior: "AGP-3001", nombres: "Valentina", apellidos: "Morales Ruiz", grupo: "3B" },
+    { codigoUnico: "AGAPE-006", codigoAnterior: "AGP-3002", nombres: "Samuel", apellidos: "Delgado Cruz", grupo: "3B" },
+    { codigoUnico: "AGAPE-007", codigoAnterior: "AGP-3003", nombres: "Isabella", apellidos: "Núñez Pardo", grupo: "3B" },
+    { codigoUnico: "AGAPE-008", codigoAnterior: "AGP-3004", nombres: "Tomás", apellidos: "Guerrero Silva", grupo: "3B" },
+    { codigoUnico: "AGAPE-009", codigoAnterior: "AGP-5001", nombres: "Camila", apellidos: "Restrepo Gil", grupo: "5A" },
+    { codigoUnico: "AGAPE-010", codigoAnterior: "AGP-5002", nombres: "Juan", apellidos: "Osorio Méndez", grupo: "5A" },
+    { codigoUnico: "AGAPE-011", codigoAnterior: "AGP-5003", nombres: "Mariana", apellidos: "Cifuentes León", grupo: "5A" },
+    { codigoUnico: "AGAPE-012", codigoAnterior: "AGP-5004", nombres: "Andrés", apellidos: "Palacios Ríos", grupo: "5A" },
 ] as const;
 
 async function seedGruposYEstudiantes() {
@@ -166,6 +169,14 @@ async function seedGruposYEstudiantes() {
         const grupoId = grupoPorCodigo.get(estudiante.grupo);
         if (!grupoId) {
             throw new Error(`No existe el grupo ${estudiante.grupo} para sembrar estudiantes`);
+        }
+        const anterior = await prisma.estudiante.findUnique({ where: { codigoUnico: estudiante.codigoAnterior } });
+        const actual = await prisma.estudiante.findUnique({ where: { codigoUnico: estudiante.codigoUnico } });
+        if (anterior && !actual) {
+            await prisma.estudiante.update({
+                where: { id: anterior.id },
+                data: { codigoUnico: estudiante.codigoUnico },
+            });
         }
         await prisma.estudiante.upsert({
             where: { codigoUnico: estudiante.codigoUnico },
