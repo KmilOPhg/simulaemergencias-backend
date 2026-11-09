@@ -4,6 +4,10 @@ import rolRoutes from "./rol.routes";
 import recuperacionRoutes from "./recuperacion.routes";
 import sistemaRoutes from "./sistema.routes";
 import recursosRoutes from "./recursos.routes";
+import estudiantesRoutes from "./estudiantes.routes";
+import ejerciciosRoutes from "./ejercicios.routes";
+import verificacionesRoutes from "./verificaciones.routes";
+import gruposRoutes from "./grupos.routes";
 
 const router = Router();
 
@@ -21,5 +25,17 @@ router.use("/sistema", sistemaRoutes);
 
 // Módulo de ejemplo — bórralo o renómbralo cuando crees tus propios módulos
 router.use("/recursos", recursosRoutes);
+
+// HU-01. Listado de estudiantes
+router.use("/estudiantes", estudiantesRoutes);
+
+// HU-04. Registro de ejercicios de emergencia
+router.use("/ejercicios", ejerciciosRoutes);
+
+// HU-07. Verificación de un estudiante dentro de un ejercicio
+router.use("/ejercicios/:ejercicioId/verificaciones", verificacionesRoutes);
+
+// HU-06. Grupos disponibles
+router.use("/grupos", gruposRoutes);
 
 export default router;

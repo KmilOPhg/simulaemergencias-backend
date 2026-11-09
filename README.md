@@ -17,7 +17,8 @@ Backend generado con **create-node-app** (variante sin R2), basado en la arquite
 ```
 lib/prisma.ts            Cliente Prisma (driver adapter pg)
 prisma/schema.prisma      Modelos: Rol, Permiso, RolPermiso, Usuario, UsuarioRol,
-                           TokenRecuperacion, Recurso (módulo de ejemplo)
+                           TokenRecuperacion, Recurso (módulo de ejemplo),
+                           Grupo, Estudiante, EjercicioEmergencia, VerificacionEstudiante
 src/
   app.ts                  Express app: cors, json, swagger, rutas, error middleware
   index.ts                Punto de entrada (arranca el servidor)
@@ -34,6 +35,10 @@ src/
     recuperacion.*          Recuperación de contraseña
     sistema.*               Healthcheck
     recursos.*               Módulo de ejemplo (CRUD) — úsalo como plantilla
+    estudiantes.*            HU-01. Listado de estudiantes
+    ejercicios.*             HU-04. Registro de ejercicios de emergencia
+    verificaciones.*         HU-07. Verificación de un estudiante en un ejercicio
+    grupos.*                 HU-06. Grupos disponibles
   scripts/seed.ts          Roles, permisos, usuario admin inicial
 ```
 
@@ -80,6 +85,76 @@ POST /api/auth/login
 ```
 
 Usa el `token` devuelto como `Authorization: Bearer <token>` en las demás peticiones.
+
+El rol `user` puede consultar estudiantes, registrar ejercicios y registrar verificaciones. El rol `admin` tiene todos los permisos.
+
+El rol `user` también puede consultar los ejercicios registrados y los grupos disponibles.
+
+## SimulaEmergencias (HU-01, HU-04 y HU-07) y consultas (HU-02, HU-03, HU-05 y HU-06)
+
+Estas historias cubren el flujo de identificar participantes, abrir un ejercicio y dejar constancia de cada verificación. Los estudiantes y grupos del seed son ficticios: no uses datos reales de menores sin autorización de Ágape School.
+
+### Reglas de negocio
+
+- El listado de estudiantes solo muestra `id`, `codigoUnico`, `nombres`, `apellidos` y el grupo (`id`, `codigo`, `nombre`). No se devuelven documento, contacto ni otros datos personales.
+- Un ejercicio exige nombre, fecha (`AAAA-MM-DD`) y tipo de escenario: `SISMO`, `INCENDIO` o `INTRUSO`. Lugar, descripción y hora de inicio (`HH:mm`) son opcionales.
+- El responsable del ejercicio y de la verificación es el usuario del token. No se acepta otro usuario en el cuerpo de la petición.
+- La verificación queda ligada al ejercicio, al estudiante y al grupo. El `grupoId` debe ser el grupo actual de ese estudiante.
+- Solo puede existir una verificación por estudiante en cada ejercicio. Un segundo intento responde `409`.
+- `VERIFICADO` significa que el responsable registró el chequeo. No significa, por sí mismo, que el estudiante estuviera presente o ausente. El estado pendiente no se guarda: es la ausencia de esa fila y no debe leerse como inasistencia.
+- La búsqueda por código (HU-02) devuelve los mismos campos del listado. Si el código no existe responde `404` y si llega vacío responde `400`.
+- El listado filtrado por grupo (HU-03) solo trae los estudiantes de ese grupo. Si el grupo no tiene estudiantes se informa en el mensaje y `datos` llega vacío.
+- La consulta de ejercicios (HU-05) los ordena del más reciente al más antiguo e informa cuando todavía no existen ejercicios.
+
+### Endpoints
+
+Todos requieren `Authorization: Bearer <token>`.
+
+| Historia | Método y ruta | Permiso |
+| --- | --- | --- |
+| HU-01 | `GET /api/estudiantes?page=1&limit=20` | `estudiantes.consultar` |
+| HU-02 | `GET /api/estudiantes/codigo/{codigo}` | `estudiantes.consultar` |
+| HU-03 | `GET /api/estudiantes?grupoId=1` | `estudiantes.consultar` |
+| HU-04 | `POST /api/ejercicios` | `ejercicios.crear` |
+| HU-05 | `GET /api/ejercicios?page=1&limit=20` | `ejercicios.consultar` |
+| HU-06 | `GET /api/grupos` | `grupos.consultar` |
+| HU-07 | `POST /api/ejercicios/{ejercicioId}/verificaciones` | `verificaciones.registrar` |
+
+Registrar un ejercicio:
+
+```json
+POST /api/ejercicios
+{
+  "nombre": "Simulacro de sismo — bloque primaria",
+  "fecha": "2026-10-26",
+  "horaInicio": "09:30",
+  "tipoEscenario": "SISMO",
+  "lugar": "Sede principal",
+  "descripcion": "Evacuación hacia el punto de encuentro del patio central."
+}
+```
+
+Registrar la verificación de un estudiante de ese ejercicio. `estudianteId` y `grupoId` salen del listado de HU-01; `ejercicioId` sale de la respuesta de HU-04.
+
+```json
+POST /api/ejercicios/1/verificaciones
+{
+  "estudianteId": 1,
+  "grupoId": 1,
+  "observacion": "Chequeo registrado en el punto de encuentro."
+}
+```
+
+Consultar los estudiantes de un grupo o buscar uno por su código. El `grupoId` sale de `GET /api/grupos`:
+
+```
+GET /api/estudiantes?grupoId=1
+GET /api/estudiantes/codigo/AGP-1001
+```
+
+La semilla crea los grupos `1A` (Primero A), `3B` (Tercero B) y `5A` (Quinto A), con cuatro estudiantes ficticios en cada uno. Sus códigos van de `AGP-1001` a `AGP-1004`, `AGP-3001` a `AGP-3004` y `AGP-5001` a `AGP-5004`.
+
+La documentación interactiva de estos contratos está en [http://localhost:1206/api-docs](http://localhost:1206/api-docs).
 
 ## Cómo agregar un nuevo módulo (patrón CRUD)
 

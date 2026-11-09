@@ -68,8 +68,10 @@ model Usuario {
   actualizadoEn DateTime      @updatedAt
 
   // Un usuario puede tener varios roles (N:N vía usuarios_roles); sus permisos efectivos son la unión
-  usuarioRoles      UsuarioRol[]
-  tokenRecuperacion TokenRecuperacion[]
+  usuarioRoles              UsuarioRol[]
+  tokenRecuperacion         TokenRecuperacion[]
+  ejerciciosRegistrados     EjercicioEmergencia[]    @relation("EjercicioRegistradoPor")
+  verificacionesRegistradas VerificacionEstudiante[] @relation("VerificacionRegistradaPor")
 
   @@map("usuarios")
 }
@@ -124,4 +126,101 @@ model Recurso {
   actualizadoEn DateTime @updatedAt
 
   @@map("recursos")
+}
+
+// ===========================================================
+// MÓDULO: ESTUDIANTES Y GRUPOS (HU-01)
+// El listado público de la API solo expone los campos necesarios
+// para identificar al participante: código, nombre y grupo.
+// ===========================================================
+
+model Grupo {
+  id            Int      @id @default(autoincrement())
+  codigo        String   @unique @db.VarChar(20)
+  nombre        String   @db.VarChar(100)
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  estudiantes    Estudiante[]
+  verificaciones VerificacionEstudiante[]
+
+  @@map("grupos")
+}
+
+model Estudiante {
+  id            Int      @id @default(autoincrement())
+  codigoUnico   String   @unique @db.VarChar(30)
+  nombres       String   @db.VarChar(120)
+  apellidos     String   @db.VarChar(120)
+  grupoId       Int
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  grupo          Grupo                     @relation(fields: [grupoId], references: [id])
+  verificaciones VerificacionEstudiante[]
+
+  @@index([grupoId])
+  @@index([apellidos, nombres])
+  @@map("estudiantes")
+}
+
+// ===========================================================
+// MÓDULO: EJERCICIOS DE EMERGENCIA (HU-04)
+// Escenarios aprobados: sismo, incendio e intruso.
+// ===========================================================
+
+enum TipoEscenario {
+  SISMO
+  INCENDIO
+  INTRUSO
+}
+
+model EjercicioEmergencia {
+  id              Int           @id @default(autoincrement())
+  nombre          String        @db.VarChar(150)
+  fecha           DateTime      @db.Date
+  horaInicio      String?       @db.VarChar(5)
+  tipoEscenario   TipoEscenario
+  lugar           String?       @db.VarChar(200)
+  descripcion     String?       @db.Text
+  registradoPorId Int
+  creadoEn        DateTime      @default(now())
+  actualizadoEn   DateTime      @updatedAt
+
+  registradoPor  Usuario                   @relation("EjercicioRegistradoPor", fields: [registradoPorId], references: [id])
+  verificaciones VerificacionEstudiante[]
+
+  @@index([fecha])
+  @@index([tipoEscenario])
+  @@map("ejercicios_emergencia")
+}
+
+// ===========================================================
+// MÓDULO: VERIFICACIÓN DE ESTUDIANTES (HU-07)
+// Una fila significa que el responsable registró la verificación.
+// No existe un estado almacenado de "pendiente" ni de ausencia:
+// pendiente es la falta de esta fila y no equivale a inasistencia.
+// Una sola verificación por estudiante en cada ejercicio.
+// ===========================================================
+
+model VerificacionEstudiante {
+  id              Int      @id @default(autoincrement())
+  ejercicioId     Int
+  estudianteId    Int
+  grupoId         Int
+  observacion     String?  @db.VarChar(500)
+  registradoPorId Int
+  verificadoEn    DateTime @default(now())
+  creadoEn        DateTime @default(now())
+
+  ejercicio     EjercicioEmergencia @relation(fields: [ejercicioId], references: [id])
+  estudiante    Estudiante          @relation(fields: [estudianteId], references: [id])
+  grupo         Grupo               @relation(fields: [grupoId], references: [id])
+  registradoPor Usuario             @relation("VerificacionRegistradaPor", fields: [registradoPorId], references: [id])
+
+  @@unique([ejercicioId, estudianteId])
+  @@index([ejercicioId, grupoId])
+  @@map("verificaciones_estudiantes")
 }
